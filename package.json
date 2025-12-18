@@ -1,0 +1,39 @@
+{
+  "name": "web5-did-cache",
+  "version": "1.0.0",
+  "description": "A web5 did cache service",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "serve": "node dist/index.js",
+    "test:platform-address": "ts-node tests/platformAddress.concurrency.test.ts",
+    "check:unused": "ts-prune -p tsconfig.unused.json"
+  },
+  "keywords": [
+    "ckb",
+    "web5",
+    "did"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ckb-ccc/core": "^1.12.2",
+    "@ipld/dag-cbor": "^9.2.5",
+    "@scure/base": "^2.0.0",
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "pg": "^8.16.3",
+    "secp256k1": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.9.2",
+    "@types/pg": "^8.15.6",
+    "ts-node": "^10.9.2",
+    "ts-prune": "^0.10.3",
+    "typescript": "^5.9.3"
+  }
+}
