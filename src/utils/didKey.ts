@@ -1,4 +1,4 @@
-import { base58btc } from 'multiformats/bases/base58';
+import { base58 } from '@scure/base';
 import { bytesFrom } from '@ckb-ccc/core';
 
 export const getDidKeyFromPublicHex = (pubHex: string): string => {
@@ -8,8 +8,8 @@ export const getDidKeyFromPublicHex = (pubHex: string): string => {
     const prefixed = new Uint8Array(prefix.length + pub.length);
     prefixed.set(prefix, 0);
     prefixed.set(pub, prefix.length);
-    const mb = base58btc.encode(prefixed);
-    return `did:key:${mb}`;
+    const mb = base58.encode(prefixed);
+    return `did:key:z${mb}`;
   } catch {
     return '';
   }

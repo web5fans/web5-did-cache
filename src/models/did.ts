@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { query } from '../db';
+import { query } from '../db/index.js';
 
 export interface Did {
   id: number;
@@ -129,7 +129,7 @@ export async function updateDidTxHashInPending(
 ): Promise<Did | null> {
   const result = await query(
     `UPDATE did
-     SET tx_hash = $3, updated_at = NOW()
+     SET tx_hash = $2, updated_at = NOW()
      WHERE did = $1 AND status = 2
      RETURNING *`,
     [did, tx_hash]

@@ -1,11 +1,12 @@
 import { PoolClient } from 'pg';
-import { withTransaction, query } from '../db';
-import * as PlatformAddressModel from '../models/platformAddress';
-import * as DidModel from '../models/did';
-import * as CkbService from './ckbService';
-import { completeTransaction, getTransactionStatus } from './ckbService';
-import { Transaction } from '@ckb-ccc/core';
-import { getDidKeyFromPublicHex } from '../utils/didKey';
+import { withTransaction, query } from '../db/index.js';
+import * as PlatformAddressModel from '../models/platformAddress.js';
+import * as DidModel from '../models/did.js';
+import * as CkbService from './ckbService.js';
+import { completeTransaction, getTransactionStatus } from './ckbService.js';
+import { bytesFrom, hexFrom, Transaction } from '@ckb-ccc/core';
+import { getDidKeyFromPublicHex } from '../utils/didKey.js';
+import { secp256k1 } from "@noble/curves/secp256k1.js";
 
 export async function createDid(metadata: string, secret: string) {
   return await withTransaction(async (client) => {
@@ -65,14 +66,12 @@ export async function updateDid(did: string, secret: string, metadata: string) {
 }
 
 function verifySignature(sender: string, signature: string, didKey: string): boolean {
-  const secp256k1 = require('secp256k1');
   const message = Buffer.from(sender);
-  const signatureBuffer = Buffer.from(signature);
-  const publicKey = secp256k1.recover(message, signatureBuffer, 0);
-  if (!publicKey) {
-    return false;
-  }
-  const recoveredDidKey = getDidKeyFromPublicHex(publicKey.toString('hex'));
+  const signatureBytes = bytesFrom(signature);
+  
+  const recoveredPubKey = secp256k1.recoverPublicKey(signatureBytes, message, { prehash: false });
+  
+  const recoveredDidKey = getDidKeyFromPublicHex(hexFrom(recoveredPubKey));
   return recoveredDidKey === didKey;
 }
 
@@ -142,7 +141,7 @@ export async function completeDid(did: string, partSignedTx: string) {
   }
 
   if (appTxHash !== didRecord.tx_hash) {
-    throw new Error('transaction hash mismatch');
+    throw new Error(`transaction hash mismatch: ${appTxHash} !== ${didRecord.tx_hash}`);
   }
 
   const didRecordInPending = await DidModel.changeDidStatusFromUpgradeToPending(did);

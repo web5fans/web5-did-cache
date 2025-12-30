@@ -1,11 +1,12 @@
-import { Address, ccc, CellDepLike, hexFrom, KnownScript, Transaction, hashTypeId, HasherCkb } from "@ckb-ccc/core";
+import { Address, ccc, hexFrom, KnownScript, Transaction, hashTypeId, HasherCkb } from "@ckb-ccc/core";
 import { HDKey } from "@scure/bip32";
 import * as bip39 from "@scure/bip39";
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { base32 } from "@scure/base";
-import { createPlatformAddress, getAllPlatformAddress } from "../models/platformAddress";
+import { createPlatformAddress, getAllPlatformAddress } from "../models/platformAddress.js";
 import dotenv from 'dotenv';
-import { DidCkbData } from '../utils/didMol';
+import { DidCkbData } from '../utils/didMol.js';
+import * as cbor from "@ipld/dag-cbor";
 
 // load environment variables
 dotenv.config();
@@ -252,8 +253,6 @@ export async function buildUpgradeTransaction(
 
     // calculate new did data
     const metadataJson = JSON.parse(metadata);
-    // Dynamic import for ESM module
-    const cbor = await import('@ipld/dag-cbor');
     const cborBytes = cbor.encode(metadataJson);
     const docHex = ccc.hexFrom(cborBytes);
     const newDid = DidCkbData.from({ value: { document: docHex, localId: undefined } });
@@ -326,9 +325,24 @@ export async function buildUpgradeTransaction(
       outputsData.push("0x");
     }
 
+    // add web5did celldep
+    const didDepCell = CKB_NETWORK === 'ckb_testnet' ? {
+        outPoint: {
+          txHash: '0x0e7a830e2d5ebd05cd45a55f93f94559edea0ef1237b7233f49f7facfb3d6a6c',
+          index: '0x0',
+        },
+        depType: 'code',
+      } : {
+        outPoint: {
+          txHash: '0xe2f74c56cdc610d2b9fe898a96a80118845f5278605d7f9ad535dad69ae015bf',
+          index: '0x0',
+        },
+        depType: 'code',
+      };
+
     const tx = Transaction.from({
       version: 0,
-      cellDeps: [],
+      cellDeps: [didDepCell],
       inputs: inputs,
       outputs: outputs,
       outputsData: outputsData,
@@ -353,7 +367,7 @@ export async function buildUpgradeTransaction(
     
     // CCC `prepareSighashAllWitness` helps.
     // It finds inputs locked by the script and sets up witnesses.
-    
+
     await tx.prepareSighashAllWitness(platformAddr.script, 85, cccClient);
     await tx.prepareSighashAllWitness(senderAddr.script, 85, cccClient);
 

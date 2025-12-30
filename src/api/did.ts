@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
-import { createDid, updateDid, upgradeDid, completeDid, getDid, getAllDids, getDidById } from '../services/didService';
-import { DidStatus } from '../models/did';
-import { ErrorCode } from './errorCodes';
+import { createDid, updateDid, upgradeDid, completeDid, getDid, getAllDids, getDidById } from '../services/didService.js';
+import { DidStatus } from '../models/did.js';
+import { ErrorCode } from './errorCodes.js';
 
 export const didRouter = express.Router();
 const WEB5_DID_INDEXER_URL = process.env.WEB5_DID_INDEXER_URL || 'http://localhost:3001';
@@ -72,6 +72,7 @@ function validateMetadata(metadata: string): void {
 // Create DID
 didRouter.post('/create', async (req: Request, res: Response) => {
   try {
+    console.log('create Request body:', req.body);
     const { metadata, secret } = req.body;
     if (!metadata || typeof metadata !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid metadata', code: ErrorCode.VALIDATION_ERROR });
@@ -143,6 +144,7 @@ didRouter.post('/update', async (req: Request, res: Response) => {
 // Upgrade DID
 didRouter.post('/upgrade', async (req: Request, res: Response) => {
   try {
+    console.log('upgrade Request body:', req.body);
     const { did, sender, signature } = req.body;
     if (!did || !sender || !signature) {
       return res.status(400).json({ error: 'Missing parameters', code: ErrorCode.VALIDATION_ERROR });
@@ -163,12 +165,13 @@ didRouter.post('/upgrade', async (req: Request, res: Response) => {
 // Complete DID
 didRouter.post('/complete', async (req: Request, res: Response) => {
   try {
+    console.log('complete Request body:', req.body);
     const { did, tx } = req.body;
     if (!did || !tx) {
       return res.status(400).json({ error: 'Missing parameters', code: ErrorCode.VALIDATION_ERROR });
     }
 
-    const result = await completeDid(did, JSON.stringify(tx)); // completeDid expects stringified tx
+    const result = await completeDid(did, tx); // completeDid expects stringified tx
     res.json(result);
   } catch (error) {
     console.error('Error in complete did endpoint:', error);

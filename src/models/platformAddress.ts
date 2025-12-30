@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { query } from '../db';
+import { query } from '../db/index.js';
 
 interface PlatformAddress {
   id: number;

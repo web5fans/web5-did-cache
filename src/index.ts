@@ -1,10 +1,10 @@
 import express from 'express';
-import { didRouter, getDidHandler } from './api/did';
-import { initDb } from './db';
+import { didRouter, getDidHandler } from './api/did.js';
+import { initDb } from './db/index.js';
 import dotenv from 'dotenv';
-import { initPlatformAddresses } from './services/ckbService';
-import { startDidCheckTask } from './services/didCheckService';
-import { initLogger } from './utils/logger';
+import { initPlatformAddresses } from './services/ckbService.js';
+import { startDidCheckTask } from './services/didCheckService.js';
+import { initLogger } from './utils/logger.js';
 
 // Load environment variables
 dotenv.config();

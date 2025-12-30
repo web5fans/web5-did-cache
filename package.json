@@ -4,10 +4,10 @@
   "description": "A web5 did cache service",
   "main": "dist/index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "node --no-deprecation --import ./loader.js src/index.ts",
     "build": "tsc",
     "serve": "node dist/index.js",
-    "test:platform-address": "ts-node tests/platformAddress.concurrency.test.ts",
+    "test:integration": "node --no-deprecation --import ./loader.js integration/did_test.ts",
     "check:unused": "ts-prune -p tsconfig.unused.json"
   },
   "keywords": [
@@ -15,6 +15,7 @@
     "web5",
     "did"
   ],
+  "type": "module",
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -26,7 +27,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "pg": "^8.16.3",
-    "secp256k1": "^5.0.1"
+    "@noble/curves": "^2.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

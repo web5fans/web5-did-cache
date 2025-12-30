@@ -1,4 +1,4 @@
-import { checkPendingDids, checkUpgradeDids } from './didService';
+import { checkPendingDids, checkUpgradeDids } from './didService.js';
 
 let checkTaskInterval: NodeJS.Timeout | null = null;
 
