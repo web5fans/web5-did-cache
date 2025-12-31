@@ -238,11 +238,11 @@ export async function buildUpgradeTransaction(
     // We need to estimate DID cell capacity.
     // Capacity = 8 + Lock + Type + Data
     // Lock = Sender Lock (assume standard secp256k1 = 53 bytes? Script is 32 codehash + 1 hashtype + 20 args = 53)
-    // Type = DIDType (32 codehash + 1 hashtype + 32 args = 65)
+    // Type = DIDType (32 codehash + 1 hashtype + 20 args = 53)
     // Data = data length
     
     // prepare output[0] -- did cell
-    const didArgs = hashTypeId(inputs[0], 0);
+    const didArgs = hashTypeId(inputs[0], 0).slice(0, 42);
     const didCodeHash = CKB_NETWORK === 'ckb_testnet' ? '0x510150477b10d6ab551a509b71265f3164e9fd4137fcb5a4322f49f03092c7c5' : '0x4a06164dc34dccade5afe3e847a97b6db743e79f5477fa3295acf02849c5984a';
 
     const didTypeScript = {
@@ -262,8 +262,8 @@ export async function buildUpgradeTransaction(
     // Calculate occupied capacity
     // 8 (cap) + lock_len + type_len + data_len
     const dataLen = didData.length;
-    const lockLen = senderAddr.script.toBytes().length;
-    const typeLen = 33 + 32; // codeHash(32) + hashType(1) + args(32)
+    const lockLen = senderAddr.script.occupiedSize;
+    const typeLen = 33 + 20; // codeHash(32) + hashType(1) + args(20)
     const didCapacity = BigInt(8 + lockLen + typeLen + dataLen) * BigInt(100000000);
     
     const platformCapacity = MIN_AMOUNT;
