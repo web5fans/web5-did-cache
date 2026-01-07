@@ -1,12 +1,11 @@
-import { Address, ccc, hexFrom, KnownScript, Transaction, hashTypeId, HasherCkb } from "@ckb-ccc/core";
+import { Address, hexFrom, Transaction, hashTypeId, HasherCkb } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/ccc";
 import { HDKey } from "@scure/bip32";
 import * as bip39 from "@scure/bip39";
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { base32 } from "@scure/base";
 import { createPlatformAddress, getAllPlatformAddress } from "../models/platformAddress.js";
 import dotenv from 'dotenv';
-import { DidCkbData } from '../utils/didMol.js';
-import * as cbor from "@ipld/dag-cbor";
 
 // load environment variables
 dotenv.config();
@@ -165,8 +164,8 @@ export async function calculateDid(platformAddressIndex: number): Promise<string
     since: "0x0",
   };
   
-  // Calculate TypeID. DID cell will be output 0.
-  const typeId = hashTypeId(cellInput, 0);
+  // Calculate TypeID. DID cell will be output 1.
+  const typeId = hashTypeId(cellInput, 1);
   const args = ccc.bytesFrom(typeId.slice(0, 42)); // 20 bytes TypeId
   const did = `did:ckb:${base32.encode(args).toLowerCase()}`;
   return did;
@@ -209,167 +208,25 @@ export async function buildUpgradeTransaction(
     const senderSigner = new ccc.SignerCkbScriptReadonly(cccClient, senderAddr.script);
     const platformSigner = new ccc.SignerCkbScriptReadonly(cccClient, platformAddr.script);
 
-    // Get platform cell
-    let platformCell;
-    for await (const cell of platformSigner.findCells({
-      scriptLenRange: [0, 1],
-      outputDataLenRange: [0, 1],
-    }, false, "asc", 1)) {
-      platformCell = cell;
-      break;
-    }
-    
-    if (!platformCell) {
-      throw new Error('Platform cell not found');
-    }
-
-    // Prepare inputs
-    // Input 0: Platform cell
-    const inputs = [{
-      previousOutput: platformCell.outPoint,
-      since: "0x0",
-    }];
-
-    // Calculate needed capacity
-    // Output 0: DID Cell (TypeID + Data(metadata) + Lock(sender))
-    // Output 1: Platform Cell (61 CKB)
-    // Output 2: Change (Sender)
-    
-    // We need to estimate DID cell capacity.
-    // Capacity = 8 + Lock + Type + Data
-    // Lock = Sender Lock (assume standard secp256k1 = 53 bytes? Script is 32 codehash + 1 hashtype + 20 args = 53)
-    // Type = DIDType (32 codehash + 1 hashtype + 20 args = 53)
-    // Data = data length
-    
-    // prepare output[0] -- did cell
-    const didArgs = hashTypeId(inputs[0], 0).slice(0, 42);
-    const didCodeHash = CKB_NETWORK === 'ckb_testnet' ? '0x510150477b10d6ab551a509b71265f3164e9fd4137fcb5a4322f49f03092c7c5' : '0x4a06164dc34dccade5afe3e847a97b6db743e79f5477fa3295acf02849c5984a';
-
-    const didTypeScript = {
-        codeHash: didCodeHash,
-        hashType: 'type',
-        args: didArgs
-    };
-
-    // calculate new did data
-    const metadataJson = JSON.parse(metadata);
-    const cborBytes = cbor.encode(metadataJson);
-    const docHex = ccc.hexFrom(cborBytes);
-    const newDid = DidCkbData.from({ value: { document: docHex, localId: undefined } });
-    const didData = newDid.toBytes();
-    const didDataHex = ccc.hexFrom(didData);
-
-    // Calculate occupied capacity
-    // 8 (cap) + lock_len + type_len + data_len
-    const dataLen = didData.length;
-    const lockLen = senderAddr.script.occupiedSize;
-    const typeLen = 33 + 20; // codeHash(32) + hashType(1) + args(20)
-    const didCapacity = BigInt(8 + lockLen + typeLen + dataLen) * BigInt(100000000);
-    
-    const platformCapacity = MIN_AMOUNT;
-    const fee = TRANSFER_FEE;
-    
-    const totalNeeded = didCapacity + fee; // Platform cell covers itself.
-    
-    // Find sender cells
-    let sendSum = BigInt(0);
-    const senderCells = [];
-    for await (const cell of senderSigner.findCells(
-      {
-        scriptLenRange: [0, 1],
-        outputDataLenRange: [0, 1],
-      }, false, "asc", 10
-    )) {
-      sendSum += BigInt(cell.cellOutput.capacity);
-      senderCells.push(cell);
-      if (sendSum >= totalNeeded + BigInt(8 + lockLen) * BigInt(100000000) || sendSum == totalNeeded) {
-        break;
-      }
-    }
-
-    if (sendSum < totalNeeded || sendSum < totalNeeded + BigInt(8 + lockLen) * BigInt(100000000)) {
-      throw new Error(`Sender does not have enough balance. Needed: ${totalNeeded}, Has: ${sendSum}`);
-    }
-    
-    // Add sender cells to inputs
-    for (const cell of senderCells) {
-        inputs.push({
-            previousOutput: cell.outPoint,
-            since: "0x0"
-        });
-    }
-
-    const outputs = [
-      {
-        capacity: ccc.numToHex(didCapacity),
-        lock: senderAddr.script,
-        type: didTypeScript
-      },
-      {
-        capacity: ccc.numToHex(platformCapacity),
-        lock: platformAddr.script,
-      }
-    ];
-
-    const outputsData = [
-      didDataHex,
-      "0x"
-    ];
-
-    // if need change cell, add it
-    if (sendSum > totalNeeded) {
-      outputs.push({
-        capacity: ccc.numToHex(sendSum - totalNeeded), // Change
-        lock: senderAddr.script,
-      });
-      outputsData.push("0x");
-    }
-
-    // add web5did celldep
-    const didDepCell = CKB_NETWORK === 'ckb_testnet' ? {
-        outPoint: {
-          txHash: '0x0e7a830e2d5ebd05cd45a55f93f94559edea0ef1237b7233f49f7facfb3d6a6c',
-          index: '0x0',
-        },
-        depType: 'code',
-      } : {
-        outPoint: {
-          txHash: '0xe2f74c56cdc610d2b9fe898a96a80118845f5278605d7f9ad535dad69ae015bf',
-          index: '0x0',
-        },
-        depType: 'code',
-      };
-
-    const tx = Transaction.from({
-      version: 0,
-      cellDeps: [didDepCell],
-      inputs: inputs,
-      outputs: outputs,
-      outputsData: outputsData,
+    const returnPlatformTx = Transaction.from({
+      outputs: [
+        {
+          capacity: ccc.numToHex(MIN_AMOUNT),
+          lock: platformAddr.script,
+        }
+      ],
     });
 
-    // Add cell deps
-    // Platform Lock (secp256k1)
-    // sender lock cell deps add by user
-    const knownScripts: KnownScript[] = [KnownScript.Secp256k1Blake160];
-    tx.addCellDepsOfKnownScripts(cccClient, ...knownScripts);
+    const metadataObj = JSON.parse(metadata);
+    const { tx } = await ccc.didCkb.createDidCkb({
+      signer: platformSigner,
+      data: { value: { document: metadataObj} },
+      receiver: senderAddr.script,
+      tx: returnPlatformTx,
+    });
 
-    // Prepare witnesses
-    // Input 0 is platform, Input 1..N are sender.
-    // We need witnesses for all.
-    // Platform signs Input 0.
-    // Sender signs Input 1..N.
-    
-    // However, usually we put one witness per lock.
-    // But here we have mixed locks.
-    // Input 0: Lock A
-    // Input 1: Lock B
-    
-    // CCC `prepareSighashAllWitness` helps.
-    // It finds inputs locked by the script and sets up witnesses.
-
-    await tx.prepareSighashAllWitness(platformAddr.script, 85, cccClient);
-    await tx.prepareSighashAllWitness(senderAddr.script, 85, cccClient);
+    await tx.completeInputsByCapacity(senderSigner);
+    await tx.completeFeeBy(senderSigner);
 
     const rawTx = ccc.stringify(tx);
     const txHash = calcAppTxHash(tx);
