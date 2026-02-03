@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS did(
 
 ### API
 
-平台需要提供 4 个 API 接口。
+平台需要提供 5 个 API 接口。
 
 - 创建接口。
   发送者调用该接口，请求包含metadata，secret。
@@ -160,6 +160,11 @@ CREATE TABLE IF NOT EXISTS did(
   返回成功或者失败的错误信息。
   后续会有一个后台任务，定时查询数据库中状态为 pending 的交易，检查是否上链成功。
   如果上链成功，将状态设置为 complete。
+- 删除接口。
+  该接口为管理接口，用于释放长期不使用的 prepare 状态的 did，回收平台资源。
+  请求包含 did。
+  平台验证 did 是否存在且状态为 prepare。
+  如果满足条件，删除数据库中的 did 记录，并释放占用的平台地址。
 
 ### 后台任务
 

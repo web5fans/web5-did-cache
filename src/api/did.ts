@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { createDid, updateDid, upgradeDid, completeDid, getDid, getAllDids, getDidById } from '../services/didService.js';
+import { createDid, updateDid, upgradeDid, completeDid, getDid, getAllDids, getDidById, deletePrepareDid } from '../services/didService.js';
 import { DidStatus } from '../models/did.js';
 import { ErrorCode } from './errorCodes.js';
 
@@ -199,6 +199,33 @@ didRouter.get('/id/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error in get did by id endpoint:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message, code: ErrorCode.INTERNAL_ERROR });
+  }
+});
+
+// Delete DID (Admin, only for PREPARE status)
+didRouter.post('/delete', async (req: Request, res: Response) => {
+  if (process.env.ENABLE_ADMIN_API !== 'true') {
+    return res.status(403).json({ error: 'Admin API is disabled', code: ErrorCode.FORBIDDEN });
+  }
+
+  try {
+    const { did } = req.body;
+    if (!did || typeof did !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid did', code: ErrorCode.VALIDATION_ERROR });
+    }
+
+    await deletePrepareDid(did);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error in delete did endpoint:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (message.includes('Only PREPARE status DID can be deleted')) {
+      return res.status(409).json({ error: message, code: ErrorCode.STATE_MISMATCH });
+    }
+    if (message.includes('DID not found')) {
+      return res.status(404).json({ error: message, code: ErrorCode.NOT_FOUND });
+    }
     res.status(500).json({ error: message, code: ErrorCode.INTERNAL_ERROR });
   }
 });

@@ -179,6 +179,26 @@ export async function getAllDids() {
     return await DidModel.getAllDids();
 }
 
+export async function deletePrepareDid(did: string) {
+  return await withTransaction(async (client) => {
+    const didRecord = await DidModel.getDidByDid(did);
+    if (!didRecord) {
+      throw new Error('DID not found');
+    }
+    if (didRecord.status !== DidModel.DidStatus.PREPARE) {
+      throw new Error('Only PREPARE status DID can be deleted');
+    }
+
+    // Release platform address
+    await PlatformAddressModel.releasePlatformAddressWithTransaction(client, didRecord.platform_address_index);
+
+    // Delete DID record
+    await DidModel.deleteDidWithTransaction(client, didRecord.id);
+
+    return true;
+  });
+}
+
 export async function checkUpgradeDids() {
     const upgradeDids = await DidModel.getUpgradeDidsTimeout(60);
     for (const didRecord of upgradeDids) {
