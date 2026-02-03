@@ -162,6 +162,63 @@ async function main() {
   }
   const didDataAfterComplete = await didResAfterComplete.json();
   console.log('Query DID Response after complete:', didDataAfterComplete);
+
+  // 6. Test Delete DID (PREPARE status)
+  await testDeleteDid();
+}
+
+async function testDeleteDid() {
+  console.log('\n--- Step 5: Test Delete DID (PREPARE status) ---');
+  
+  // 1. Create a temporary DID
+const metadata = JSON.stringify({
+    services: {
+        atproto_pds: {
+            type: "AtprotoPersonalDataServer",
+            endpoint: "https://pds.example.com"
+        }
+    },
+    alsoKnownAs: ["at://alice.example.com"],
+    verificationMethods: {
+        atproto: "did:key:zQ3shvzLcx2TeGmV33sPsVieaXWdjYwAcGXfiVgSyfhe6JdHh"
+    }
+  });
+  const secret = "delete_test_secret";
+  
+  const createRes = await fetch(`${API_URL}/api/did/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ metadata, secret })
+  });
+  
+  if (!createRes.ok) {
+    throw new Error(`Create for delete failed: ${createRes.status} ${await createRes.text()}`);
+  }
+
+  const createData = await createRes.json();
+  const did = createData.did;
+  console.log(`Created temporary DID for deletion: ${did}`);
+
+  // 2. Delete the DID
+  const deleteRes = await fetch(`${API_URL}/api/did/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ did })
+  });
+
+  if (!deleteRes.ok) {
+    throw new Error(`Delete failed: ${deleteRes.status} ${await deleteRes.text()}`);
+  }
+  console.log('Delete DID Response:', await deleteRes.json());
+
+  // 3. Verify it's gone from local cache
+  // We check /api/did/id/:id or similar if available, or just query and expect redirect/404
+  const queryRes = await fetch(`${API_URL}/${did}`, { redirect: 'manual' });
+  console.log(`Query deleted DID response status: ${queryRes.status}`);
+  if (queryRes.status !== 302 && queryRes.status !== 404) {
+    throw new Error(`Expected 302 or 404 for deleted DID, got ${queryRes.status}`);
+  }
+  console.log('Delete DID verification successful.');
 }
 
 main().then(() => {

@@ -190,3 +190,13 @@ export async function getUpgradeDidsTimeout(seconds: number): Promise<Did[]> {
   );
   return result.rows || [];
 }
+
+export async function deleteDidWithTransaction(
+  client: PoolClient,
+  id: number
+): Promise<void> {
+  await client.query(
+    'DELETE FROM did WHERE id = $1',
+    [id]
+  );
+}

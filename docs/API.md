@@ -233,7 +233,37 @@ curl -s -X GET http://localhost:3000/api/did/all | jq .
 ]
 ```
 
-### 7. 查询 DID (Get DID)
+### 7. 删除 DID (Delete DID)
+
+删除处于 `PREPARE` 状态的 DID 记录并释放资源 (管理接口)。
+
+- **URL**: `/api/did/delete`
+- **Method**: `POST`
+- **Content-Type**: `application/json`
+
+**请求参数 (Request Body)**:
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `did` | string | Yes | 要删除的 DID。 |
+
+**响应示例 (Response)**:
+
+```shell
+curl -s -X POST http://localhost:3000/api/did/delete \
+-H "Content-Type: application/json" \
+-d '{
+    "did": "did:ckb:zql3n3uotku4vp4opejkoqivsjukz573"
+}' | jq .
+```
+
+```json
+{
+  "success": true
+}
+```
+
+### 8. 查询 DID (Get DID)
 
 查询 DID 的元数据。
 
