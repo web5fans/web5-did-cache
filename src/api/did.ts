@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { createDid, updateDid, upgradeDid, completeDid, getDid, getAllDids, getDidById, deletePrepareDid } from '../services/didService.js';
 import { DidStatus } from '../models/did.js';
 import { ErrorCode } from './errorCodes.js';
+import { getWxOpenId } from '../utils/wxauth.js';
 
 export const didRouter = express.Router();
 const WEB5_DID_INDEXER_URL = process.env.WEB5_DID_INDEXER_URL || 'http://localhost:3001';
@@ -81,6 +82,11 @@ didRouter.post('/create', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Missing or invalid secret', code: ErrorCode.VALIDATION_ERROR });
     }
 
+    const wxOpenId = await getWxOpenId(secret);
+    if (!wxOpenId) {
+        return res.status(400).json({ error: 'Invalid secret', code: ErrorCode.VALIDATION_ERROR });
+    }
+
     try {
         validateMetadata(metadata);
     } catch (e) {
@@ -88,7 +94,7 @@ didRouter.post('/create', async (req: Request, res: Response) => {
         return res.status(400).json({ error: message, code: ErrorCode.VALIDATION_ERROR });
     }
 
-    const result = await createDid(metadata, secret);
+    const result = await createDid(metadata, wxOpenId);
     res.json({
         id: result.id,
         did: result.did,
@@ -119,7 +125,12 @@ didRouter.post('/update', async (req: Request, res: Response) => {
         return res.status(400).json({ error: message, code: ErrorCode.VALIDATION_ERROR });
     }
 
-    const result = await updateDid(did, secret, metadata);
+    const wxOpenId = await getWxOpenId(secret);
+    if (!wxOpenId) {
+        return res.status(400).json({ error: 'Invalid secret', code: ErrorCode.VALIDATION_ERROR });
+    }
+
+    const result = await updateDid(did, wxOpenId, metadata);
     if (!result) {
         return res.status(404).json({ error: 'DID not found or update failed', code: ErrorCode.NOT_FOUND });
     }
